@@ -1,0 +1,92 @@
+#cloud-config
+# First boot of the app server. Terraform passes this as user_data (compute.tf) after templating
+# the $${...} placeholders. It prepares the host and nothing more: the compose files arrive with
+# `make sync`, the images with `make remote-deploy`. Re-running it on a live server is not a thing;
+# change the server by hand or rebuild it. The SSM agent is already in Canonical's image, which is
+# what Session Manager (ssh without port 22) and the Deploy workflow's Run Command rely on.
+package_update: true
+package_upgrade: true
+
+# 2 GB of swap on a 2 GB instance: not for running on, for surviving a spike. Without it the
+# kernel's only answer to memory pressure is to kill something.
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G
+
+packages:
+  - ca-certificates
+  - curl
+  - make
+  - rsync
+  - amazon-ecr-credential-helper
+
+write_files:
+  # Selects the production overlay and points at the registry. TAG is rewritten by every
+  # `make remote-deploy TAG=...`.
+  - path: /srv/carrental/.env
+    owner: ubuntu:ubuntu
+    permissions: "0640"
+    defer: true
+    content: |
+      COMPOSE_FILE=compose.yml:compose.prod.yml
+      IMAGE_PREFIX=${image_prefix}
+      TAG=latest
+      DOMAIN=${domain}
+      ACME_EMAIL=${acme_email}
+      AWS_REGION=${region}
+
+  # Docker pulls from ECR through the credential helper, which uses the instance role. No
+  # `docker login`, nothing to expire.
+  - path: /home/ubuntu/.docker/config.json
+    owner: ubuntu:ubuntu
+    permissions: "0600"
+    defer: true
+    content: |
+      { "credHelpers": { "${ecr_registry}": "ecr-login" } }
+
+  # CloudWatch agent: memory and root-disk usage every minute, which EC2's own metrics lack.
+  # monitoring.tf alarms on both. Installed and started in runcmd below.
+  - path: /etc/carrental/cloudwatch-agent.json
+    permissions: "0644"
+    content: |
+      {
+        "agent": { "metrics_collection_interval": 60 },
+        "metrics": {
+          "namespace": "CWAgent",
+          "append_dimensions": { "InstanceId": "$${aws:InstanceId}" },
+          "aggregation_dimensions": [["InstanceId"]],
+          "metrics_collected": {
+            "mem": { "measurement": ["mem_used_percent"] },
+            "disk": {
+              "measurement": ["used_percent"],
+              "resources": ["/"],
+              "ignore_file_system_types": ["sysfs", "devtmpfs", "tmpfs"]
+            }
+          }
+        }
+      }
+
+  # Every release leaves the previous images behind; without this the disk fills in months.
+  - path: /etc/cron.weekly/docker-prune
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      docker system prune -af --filter "until=168h" >/dev/null 2>&1
+
+runcmd:
+  # Docker Engine and the compose plugin from Docker's own repository (Ubuntu's is older).
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - usermod -aG docker ubuntu
+  - mkdir -p /srv/carrental/env /srv/carrental/secrets
+  - chown -R ubuntu:ubuntu /srv/carrental /home/ubuntu/.docker
+  # CloudWatch agent, from AWS's package for this architecture, reading the config written above.
+  - curl -fsSL -o /tmp/amazon-cloudwatch-agent.deb https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/${architecture}/latest/amazon-cloudwatch-agent.deb
+  - dpkg -i -E /tmp/amazon-cloudwatch-agent.deb
+  - /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/etc/carrental/cloudwatch-agent.json

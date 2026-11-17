@@ -1,0 +1,6 @@
+# Copy to backend.hcl (gitignored). bucket is what bootstrap/ created.
+bucket       = "carrental-terraform-state-CHANGEME"
+key          = "production/terraform.tfstate"
+region       = "eu-west-3"
+use_lockfile = true
+encrypt      = true

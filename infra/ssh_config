@@ -1,0 +1,12 @@
+# ssh to the server through AWS Systems Manager Session Manager. Port 22 is closed on the
+# instance by default (terraform: ssh_allowed_cidrs = []); the SSM agent on the box dials out to
+# AWS and this ProxyCommand tunnels ssh through that session. Nothing to open, nothing to expose,
+# and every session is in CloudTrail. sshd still checks your key (ssh_public_key in tfvars).
+#
+# Used by the Makefile as `ssh -F ssh_config`. Needs on the laptop: the AWS CLI configured, and
+# the Session Manager plugin: brew install --cask session-manager-plugin
+Host i-* mi-*
+	User ubuntu
+	ProxyCommand sh -c "aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p' --region ${AWS_REGION:-eu-west-3}"
+	StrictHostKeyChecking accept-new
+	ServerAliveInterval 30

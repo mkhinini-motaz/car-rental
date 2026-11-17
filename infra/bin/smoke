@@ -1,0 +1,19 @@
+#!/bin/sh
+# The local stack end to end through Caddy: log in as the seeded owner, then read the dashboard
+# with the token. Proves routing, the api container, MySQL, migrations, the seed and JWT together.
+#   bin/smoke http://api.car.localhost      (make smoke; needs make seed first)
+# curl on macOS does not resolve *.localhost, so the name is pinned to 127.0.0.1.
+set -eu
+base="${1:?usage: bin/smoke <api base url>}"
+host=$(printf '%s' "$base" | sed -E 's#^https?://([^/:]+).*#\1#')
+resolve="--resolve $host:80:127.0.0.1"
+case "$base" in https://*) resolve="" ;; esac
+
+# shellcheck disable=SC2086
+token=$(curl -fsS $resolve -H 'Accept: application/json' --data-urlencode 'phone=+21623456109' --data-urlencode 'password=azerty' "$base/api/login" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["access_token"])')
+echo "login: ok"
+now=$(date +%s)
+# shellcheck disable=SC2086
+curl -fsS $resolve -H 'Accept: application/json' -H "Authorization: Bearer $token" "$base/api/dashboard?starts_at=$now&ends_at=$((now + 86400))" \
+  | python3 -c 'import json,sys; d=json.load(sys.stdin)["data"]; print("dashboard: ok,", d["cars_total"], "cars in the fleet,", len(d["pickups"]), "pickups and", len(d["returns"]), "returns in the next 24h")'

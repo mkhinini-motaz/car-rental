@@ -1,0 +1,12 @@
+# Local: plain http, no certificates. DOMAIN comes from .env via the caddy service's environment.
+{
+	auto_https off
+}
+
+http://{$DOMAIN} {
+	reverse_proxy web:3000
+}
+
+http://api.{$DOMAIN} {
+	reverse_proxy api:8080
+}

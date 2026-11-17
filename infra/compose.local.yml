@@ -1,0 +1,51 @@
+# Local overlay. Selected by COMPOSE_FILE=compose.yml:compose.local.yml in .env.
+# Builds both images from the sibling checkouts, adds MySQL, serves plain http.
+services:
+  caddy:
+    volumes:
+      - ./caddy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+
+  # Built with the dev dependencies (see api/Dockerfile): `make seed` runs seeders that use
+  # factories, and factories need Faker. `make release` passes COMPOSER_FLAGS=--no-dev to build the
+  # production image through this same overlay.
+  api:
+    build:
+      context: ../api
+      args:
+        COMPOSER_FLAGS: ${COMPOSER_FLAGS-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Same image as api, built once above. Never try to pull it from a registry.
+  api-scheduler:
+    pull_policy: never
+
+  # NEXT_PUBLIC_* is compiled into the bundle by `next build`, hence a build arg. Change it and the
+  # image has to be rebuilt (`make up` does).
+  web:
+    build:
+      context: ../web
+      args:
+        NEXT_PUBLIC_API_URL: ${WEB_SCHEME}://api.${DOMAIN}/api/
+
+  # MySQL like production's RDS, so a migration that only works on SQLite (the api's default for
+  # `php artisan serve` and its test suite) fails here first.
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    env_file: env/mysql.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    # For a GUI client. 3307 on the host, not 3306: a Homebrew MySQL often already holds 3306.
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  mysql_data:

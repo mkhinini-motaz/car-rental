@@ -1,0 +1,108 @@
+# The car rental platform as a set of processes. This file is shared by every environment; the
+# overlay named in .env's COMPOSE_FILE adds what differs:
+#   compose.local.yml  builds each image from the sibling checkout (../api, ../web), runs MySQL
+#                      in a container, serves plain http on *.car.localhost
+#   compose.prod.yml   runs images the build workflows pushed, real TLS, logs to CloudWatch, memory ceilings
+# The database is deliberately not a service here: locally the overlay adds one, on the server it is
+# the managed database Terraform creates and env/api.env points at. The phone app is not hosted; it
+# talks to the api hostname like the web app does.
+name: carrental
+
+# Every container comes back after a crash or a reboot, and can never gain privileges it did not
+# start with (no setuid escalation), which costs nothing here because no image needs it.
+x-service: &service
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+
+x-api-base: &api-base
+  <<: *service
+  image: ${IMAGE_PREFIX}carapi:${TAG}
+  env_file: env/api.env
+  # The Firebase service-account key the morning push notifications are sent with. A secret, not a
+  # bind mount: a missing file fails loudly at `up` instead of becoming an empty directory. The api
+  # only uses it when env/api.env sets FCM_CREDENTIALS=/run/secrets/fcm_key; unset, pushes are logged.
+  secrets:
+    - fcm_key
+  volumes:
+    # Car photos, the agency logo, handover photos and papers (ID cards, licences, carte grise):
+    # carapi's private `local` disk, served only through signed links. Not reconstructible.
+    - api_files:/var/www/html/storage/app
+
+services:
+  # TLS termination and routing by hostname. The Caddyfile is chosen by the overlay.
+  caddy:
+    <<: *service
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+
+  # nginx + php-fpm. On start (AUTORUN_*) it waits for the database, runs migrations and caches
+  # config/routes/views, then serves on 8080. Only this container migrates: the scheduler waits for
+  # it to be healthy, so it never races it.
+  api:
+    <<: *api-base
+    environment:
+      LOG_CHANNEL: stderr
+      # Port 8080 is never published; the only thing that can reach it is Caddy, which replaces
+      # X-Forwarded-For with the real client address. carapi trusts every proxy (bootstrap/app.php),
+      # so request()->ip() - what the login, code and reset throttles key on - is the phone or the
+      # browser, not Caddy. Without that, every agency would share one 5-a-minute login bucket.
+      # php refuses an oversized upload before Laravel sees the request, so the body arrives empty
+      # and the app is told the photo is required when it plainly sent one. carapi accepts images
+      # up to 8 MB each and up to 12 in one handover, so php's limits sit above that: 10M a file,
+      # 100M a request (12 x 8 MB plus the form). The apps resize photos to 1600px first, so real
+      # requests are a few MB. Caddy sets no body limit of its own.
+      PHP_UPLOAD_MAX_FILE_SIZE: "10M"
+      PHP_POST_MAX_SIZE: "100M"
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION_TIMEOUT: "120"
+    healthcheck:
+      # Laravel's own health route: proves php-fpm answers and the app boots, not just nginx.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 120s
+
+  # Runs routes/console.php's schedule: `alerts:daily` at 08:00 Tunis time (the morning push of
+  # today's pickups and returns and the papers about to expire). Down means no morning push and
+  # nothing else - the apps show the same things on the Today screen. There is no queue worker:
+  # carapi queues nothing.
+  api-scheduler:
+    <<: *api-base
+    healthcheck:
+      disable: true   # the image's own check curls nginx on 8080; this process has none
+    command: ["php", "/var/www/html/artisan", "schedule:work"]
+    environment:
+      LOG_CHANNEL: stderr
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # The Next.js web app. Its API URL was compiled in at build time, so it takes no configuration.
+  # A real init as PID 1: a stop is a clean SIGTERM to node rather than a 10-second wait and a kill.
+  web:
+    <<: *service
+    init: true
+    image: ${IMAGE_PREFIX}carweb:${TAG}
+
+secrets:
+  fcm_key:
+    file: ./secrets/fcm.json
+
+volumes:
+  caddy_data:
+  caddy_config:
+  api_files:

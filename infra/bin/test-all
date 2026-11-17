@@ -1,0 +1,59 @@
+#!/bin/sh
+# Run every repo's test suite from one place, and say plainly which ones are missing.
+#
+# The suites live in the sibling checkouts rather than in the stack, because the phone app is not
+# containerised at all. So this runs on the host, not through compose - the one target here that does.
+#
+#   make test          # everything
+#   make test r=carapi # one repo
+#
+# Exits non-zero if any suite fails, so it can gate something later. A missing checkout is reported
+# rather than passed over: a runner that prints only passes teaches people everything is covered.
+set -u
+
+root=$(cd "$(dirname "$0")/../.." && pwd)
+only="${r:-}"
+failed=0
+ran=0
+skipped=''
+
+run() {
+    name="$1"
+    shift
+
+    [ -z "$only" ] || [ "$only" = "$name" ] || return 0
+    [ -d "$root/$name" ] || { skipped="$skipped $name(absent)"; return 0; }
+
+    printf '\n\033[1m== %s: %s ==\033[0m\n' "$name" "$*"
+    ran=$((ran + 1))
+
+    if (cd "$root/$name" && "$@"); then
+        printf '\033[32mok\033[0m  %s\n' "$name"
+    else
+        printf '\033[31mFAILED\033[0m  %s\n' "$name"
+        failed=$((failed + 1))
+    fi
+}
+
+# The API: feature tests against an in-memory SQLite database (phpunit.xml). MySQL, which
+# production runs, is exercised by `make up` + `make seed` + `make smoke` instead.
+run carapi php artisan test
+
+# The phone app: Jest (hermetic, the API is mocked) and ESLint, as its CI runs them.
+run car npx jest --silent
+run car npx eslint .
+
+# The web app. A Next/MUI page holds few invariants, so the gate that pays is the type checker,
+# plus the date and money helpers' tests, plus the i18n check no type checker can do:
+# `translate()` returns the key itself when one is missing, so the page would render the key.
+run carweb npm run -s typecheck
+run carweb npm test --silent
+run carweb npm run -s verify:i18n
+
+printf '\n\033[1m== summary ==\033[0m\n'
+printf '  suites run: %s, failed: %s\n' "$ran" "$failed"
+[ -z "$skipped" ] || printf '  missing:   %s\n' "$skipped"
+
+if [ "$failed" -ne 0 ]; then
+    exit 1
+fi

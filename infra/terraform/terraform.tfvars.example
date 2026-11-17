@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+domain     = "<your domain>"   # not chosen yet; the web app at the apex, carapi at api.<domain>
+acme_email = "you@example.com"
+
+# The public half of the key you will ssh with: cat ~/.ssh/id_ed25519.pub. ssh goes through
+# Session Manager (../ssh_config); no port is opened for it.
+ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
+
+# Alarm emails (SNS sends two confirmations to click, one per region). Empty = no monitoring.
+alert_email = "you@example.com"
+
+# Only if you also want plain ssh on port 22 from a fixed address:
+# ssh_allowed_cidrs = ["<your ip>/32"]
+
+# Repos whose GitHub Actions may push images. carweb has no remote yet.
+github_repositories = [
+  "<owner>/car-rental",
+  # "<owner>/car-rental",
+]
+
+# The car-infra repo, whose Deploy workflow runs `make deploy` on the server through SSM.
+# Leave unset until it has a remote; deploys then come from a laptop only.
+# github_deploy_repository = "<owner>/car-rental"
+
+# Defaults are t4g.small / arm64 and db.t4g.micro; see variables.tf before changing architecture.
+# instance_type         = "t4g.small"
+# instance_architecture = "arm64"

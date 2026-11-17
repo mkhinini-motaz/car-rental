@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.next
+node_modules
+.env
+.env.*
+tsconfig.tsbuildinfo
+Dockerfile
+.dockerignore

@@ -1,0 +1,57 @@
+# Production overlay. Selected by COMPOSE_FILE=compose.yml:compose.prod.yml in the server's .env.
+# Images are pulled, never built here; TAG in .env is the version `make deploy` rolls to.
+#
+# Every service gets a memory ceiling. On a 2 GB instance the alternative is the kernel's OOM
+# killer choosing a victim when one container leaks, and it may choose dockerd or sshd. With a
+# ceiling the leaking container is the one killed, and restart: unless-stopped brings it back.
+# The ceilings sum to about 1.2 GB, under the 2 GB plus the 2 GB swap file cloud-init creates.
+# They are budgets, not measurements: nothing has been load-tested.
+#
+# Every container's output goes to CloudWatch Logs: the log group Terraform creates (named after
+# the project, as here), one stream per container, a month kept. That is where the error alarm
+# reads carapi's log and where `make errors` looks. Docker keeps a local copy as well (dual
+# logging, a few rotated files per container), so `docker compose logs` still works on the server.
+# non-blocking: a slow CloudWatch never stalls a request; past a 4 MB buffer, lines are dropped.
+# The instance role already may write logs (CloudWatchAgentServerPolicy).
+x-logging: &logging
+  logging:
+    driver: awslogs
+    options:
+      awslogs-region: ${AWS_REGION:-eu-west-3}
+      awslogs-group: carrental
+      tag: "{{.Name}}"
+      mode: non-blocking
+      max-buffer-size: 4m
+
+services:
+  caddy:
+    <<: *logging
+    volumes:
+      - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+  api:
+    <<: *logging
+    environment:
+      PHP_OPCACHE_ENABLE: "1"
+      # 6 php-fpm children (image default 20) at PHP_MEMORY_LIMIT 256M fit the ceiling below; a
+      # few agencies' staff make a handful of requests a minute.
+      PHP_FPM_PM_MAX_CHILDREN: "6"
+    deploy:
+      resources:
+        limits:
+          memory: 640m
+  api-scheduler:
+    <<: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+  web:
+    <<: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m

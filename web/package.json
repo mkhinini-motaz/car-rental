@@ -1,0 +1,38 @@
+{
+  "name": "carweb",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "start": "next start -p 3010",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify:i18n": "node scripts/verify-i18n.mjs"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/server": "^11.11.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.4.0",
+    "@mui/material": "^9.4.0",
+    "@tanstack/react-query": "^5.103.3",
+    "axios": "^1.20.0",
+    "next": "^16.3.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "stylis": "^4.4.0",
+    "stylis-plugin-rtl": "^2.1.1"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.20.3",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.8",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

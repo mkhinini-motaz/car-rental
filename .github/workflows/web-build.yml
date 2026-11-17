@@ -1,0 +1,67 @@
+# Builds this repo's image and pushes it to ECR. Runs on a version tag (git tag v12 && git push
+# --tags) or by hand from the Actions tab, not on every push, so CI minutes go to releases only.
+# Auth is OIDC: the role in infra/terraform/github.tf trusts this repository, so no AWS key
+# is stored here. Actions are pinned to commit SHAs (a tag can be moved, a SHA cannot); Dependabot
+# (.github/dependabot.yml) proposes updates. Repository variables (Settings > Secrets and variables >
+# Actions > Variables):
+#   AWS_ROLE_ARN          required   `tofu output -raw github_actions_role_arn` in infra/terraform
+#   NEXT_PUBLIC_API_URL   required   https://api.<domain>/api/ (compiled into the bundle)
+#   AWS_REGION            optional   default eu-west-3
+name: Build web image
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  IMAGE: carrental/carweb
+
+jobs:
+  build:
+    # arm64 to match the t4g instance infra/terraform creates, so no emulation is needed.
+    # Standard arm64 runners are free-tier in private repositories since January 2026.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-west-3' }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      # Image tags: the git tag on a tag push (v12), and sha-<short> always. Deploy with either.
+      - id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ steps.ecr.outputs.registry }}/${{ env.IMAGE }}
+          tags: |
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      # No default for the API URL: the domain isn't chosen yet, and a bundle pointing at a wrong
+      # host fails only in the browser. An unset variable fails the build here instead.
+      - name: Check the API URL is set
+        run: test -n "${{ vars.NEXT_PUBLIC_API_URL }}" || { echo "::error::Set the NEXT_PUBLIC_API_URL repository variable"; exit 1; }
+
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: web
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

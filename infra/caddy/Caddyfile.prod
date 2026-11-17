@@ -1,0 +1,35 @@
+# Production: Caddy obtains and renews Let's Encrypt certificates for every hostname below on its
+# own. DNS for each name (including www) has to point at this host first.
+{
+	email {$ACME_EMAIL}
+}
+
+# Shared by every site. The browser-facing headers are the usual hardening set; the Server header
+# is dropped so scanners cannot fingerprint the proxy. No Content-Security-Policy: a wrong one breaks
+# pages silently. Requests are logged as JSON to stdout, where docker's json-file driver rotates them.
+(site) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# The web app for agency staff.
+{$DOMAIN}, www.{$DOMAIN} {
+	import site
+	reverse_proxy web:3000
+}
+
+# carapi, for the web app and the phone app (car/src/constants: PRODUCTION_API_URL).
+api.{$DOMAIN} {
+	import site
+	reverse_proxy api:8080
+}

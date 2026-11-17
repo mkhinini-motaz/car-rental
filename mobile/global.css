@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* The default theme (Navy, light) until ThemeProvider sets the agency's (src/store/ThemeContext.tsx). */
+:root {
+  --color-primary: 12 49 100;
+  --color-nav: 12 49 100;
+  --color-onNav: 255 255 255;
+  --color-canvas: 243 246 250;
+  --color-surface: 255 255 255;
+  --color-line: 222 227 235;
+  --color-ink: 15 25 38;
+  --color-muted: 88 100 116;
+  --color-ok: 3 102 57;
+  --color-info: 11 102 214;
+  --color-warn: 169 96 0;
+  --color-danger: 183 24 36;
+}

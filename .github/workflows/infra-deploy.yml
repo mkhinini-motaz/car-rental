@@ -1,0 +1,57 @@
+# Rolls the server to an image tag through SSM Run Command: GitHub holds no SSH key, the instance
+# has no open port 22, and the command lands in CloudTrail. It does not copy compose files; those
+# change rarely and go with `make sync` from a laptop. The first step checks the server has the
+# same ones as this checkout and stops if not, so a deploy never runs against files you did not
+# mean. Manual only, from the Actions tab. Needs, in this repository
+# (Settings > Secrets and variables > Actions > Variables):
+#   AWS_DEPLOY_ROLE_ARN   `tofu output -raw github_deploy_role_arn`
+#   INSTANCE_ID           `tofu output -raw instance_id`
+#   AWS_REGION            optional, default eu-west-3
+#   DOMAIN                the production domain (for the status probe at the end)
+name: Deploy (infra)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy: a git tag (v12) or sha-<short>, as pushed by the build workflows"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  INSTANCE_ID: ${{ vars.INSTANCE_ID }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-3' }}
+
+jobs:
+  deploy:
+    defaults:
+      run:
+        working-directory: infra
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check the server runs the same compose files as this commit
+        run: |
+          want=$(make -s prod-hash)
+          have=$(bin/ssm-run 'cd /srv/carrental && make -s prod-hash' | tail -n1 | tr -d '[:space:]')
+          echo "this commit: $want   server: $have"
+          if [ "$want" != "$have" ]; then
+            echo "::error::The server's compose files differ from this commit. Run 'make sync' from a laptop, then deploy again."
+            exit 1
+          fi
+
+      - name: Roll the server to the tag
+        run: bin/ssm-run 'cd /srv/carrental && sed -i "s/^TAG=.*/TAG=${{ inputs.tag }}/" .env && make deploy && docker compose ps'
+
+      - name: Probe every public hostname
+        run: make probe PROD_DOMAIN=${{ vars.DOMAIN }}

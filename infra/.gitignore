@@ -1,0 +1,18 @@
+# Live configuration is per machine and never committed; the *.example files are the templates.
+.env
+env/*.env
+secrets/*
+!secrets/README.md
+!secrets/fcm.example.json
+.DS_Store
+
+# Terraform: state and variable values stay out of git, the lock file goes in.
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfvars
+!terraform/*.tfvars.example
+terraform/backend.hcl
+terraform/bootstrap/.terraform/
+terraform/bootstrap/*.tfstate
+terraform/bootstrap/*.tfstate.backup
