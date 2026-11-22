@@ -92,7 +92,8 @@ A 26 second demo: the planning board, the client check-in page, importing the ol
 **Alerts and look**
 - A push notification every morning at 08:00 Tunis time, in each phone's language: today's pickups and returns, overdue cars, and papers ending in 30, 7 or 1 days.
 - Text messages through WinSMS, Orange or any HTTP gateway. A gateway that fails is logged and never breaks the request.
-- 18 colour themes, in light or dark mode, or following the device.
+- One colour theme for the whole agency, picked by the owner in Settings. There are 18 palettes, each with a light and a dark scheme.
+- The mode follows the device or is fixed to light or dark. The theme colours the web sidebar and the phone's header.
 
 ## Architecture
 
@@ -154,6 +155,14 @@ Web app against the seeded demo data (production build). The phone app has the s
 | ![Fleet list with where each car is](docs/screenshots/04-cars.png) | ![Monthly report](docs/screenshots/05-reports.png) |
 
 For the return screenshot the demo agency's kilometre charge was switched on (200 km a day included); the seed leaves it off.
+
+## Themes
+
+The owner picks one of 18 themes (navy, plate, noir, racing, oxblood, electric, rosso, papaya, taxi, gulf, sea, rose, desert, blossom, lilac, mint, apricot, paper) and every staff member sees it.
+
+**The Today page in four themes, light above and dark below**
+
+![Four themes on the Today page, each in light and dark](docs/screenshots/18-themes.png)
 
 ## Videos
 
