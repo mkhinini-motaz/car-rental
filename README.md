@@ -8,6 +8,10 @@ I built it with Claude Code from September 2026. I wrote a first version by hand
 
 ![Today: the cars going out and coming back, with what is owed](docs/screenshots/02-today.png)
 
+[![26 second demo](docs/media/demo.gif)](docs/media/brag.mp4)
+
+A 26 second demo: the planning board, the client check-in page, importing the old notebook, and the themes.
+
 ## At a glance
 
 - One API behind a phone app and a web app for the staff, and a check-in page for clients.
@@ -150,6 +154,15 @@ Web app against the seeded demo data (production build). The phone app has the s
 | ![Fleet list with where each car is](docs/screenshots/04-cars.png) | ![Monthly report](docs/screenshots/05-reports.png) |
 
 For the return screenshot the demo agency's kilometre charge was switched on (200 km a day included); the seed leaves it off.
+
+## Videos
+
+- [26 s demo](docs/media/brag.mp4): the paper notebook, the planning board, client check-in, import from Excel, themes. English, or [Arabic](docs/media/brag-ar.mp4).
+- Product film, 2 min 27 s: a day in an agency on the web app, from the first call to the cash book and the monthly report. [English](docs/media/promo-en.mp4), [French](docs/media/promo-fr.mp4), [Arabic](docs/media/promo-ar.mp4).
+- Cartoon film, 2 min 34 s: the same day told with cartoon staff and a client, with the app screens cut in. [English](docs/media/cartoon-en.mp4), [French](docs/media/cartoon-fr.mp4), [Arabic](docs/media/cartoon-ar.mp4).
+- Short vertical film, 36 s: the phone app, from the paper notebook to reservations, signing and reports. [English](docs/media/short-en.mp4), [French](docs/media/short-fr.mp4), [Tunisian Arabic](docs/media/short-tnar.mp4).
+
+The films use the same made-up demo data as the screenshots.
 
 ## Run locally
 
