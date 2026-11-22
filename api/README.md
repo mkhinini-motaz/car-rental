@@ -1,4 +1,4 @@
-# api — Car Rental API
+# api: Car Rental API
 
 REST API behind the car rental mobile app ([`../mobile`](../mobile)). It stores the agency's
 cars, clients and rental contracts, follows each contract from booking to settlement
@@ -75,7 +75,7 @@ pricing, extras, expenses, fines, the monthly report and file links;
 `StaffPlanningCashTest` covers staff and roles, the activity log, client flags, the
 planning and car blocks, return charges, the second driver and delivery places, and the
 cash book.
-GitHub Actions runs them on PHP 8.3 and 8.5 (`.github/workflows/ci.yml`), when started by hand.
+GitHub Actions runs them on PHP 8.4 and 8.5 (`.github/workflows/api-ci.yml` at the repository root) on every push or pull request that touches `api/`.
 
 ## API
 
@@ -143,6 +143,26 @@ agency: another agency's car is a 404. `login` allows 5 attempts per minute.
 | POST | `/contract/{id}/payment` | Record a payment: `amount` (millimes), `method` (5: from the deposit held, `payment:deposit:unavailable` beyond it), optional `paid_at`. Not on a closed contract. |
 | DELETE | `/contract/{id}/payment/{paymentId}` | Owner only. Remove a payment entered by mistake. Not on a closed contract. |
 | GET | `/up` | Health check (outside `/api`). There is no web page; `/` is a 404. |
+
+More endpoints, described in their controllers and tests:
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/signup/code`, `/signup` | A new agency signs itself up: a code by SMS proves the phone (hashed, 10 minutes, five guesses), then the agency and its first owner are created and logged in. |
+| POST | `/otp/request`, `/password/reset` | A forgotten password: a code by SMS, then a new password. A new password logs out every other device. |
+| POST | `/refresh` | A new token for the signed-in user. |
+| POST | `/user/{id}/invite` | Owner only. Sends a staff member an invitation code by SMS. |
+| GET | `/user/{id}/activity` | Owner only. What a staff member did, newest first. |
+| POST/DELETE | `/device-token` | Register or forget a phone for push notifications (the 08:00 morning alerts, pickups and returns given to staff). |
+| POST | `/contract/past` | A rental from the paper notebook in one step: no inspection, deposit or papers; closed if paid in full. |
+| POST | `/contract/{id}/cleaned` | Ticks a returned car as cleaned. |
+| POST | `/contract/{id}/pdf` | A signed link to the contract, invoice or receipt PDF (`GET /pdf/{kind}/{contract}`), in French or Arabic. |
+| POST | `/contract/{id}/signature` | The client's signature on the contract. |
+| POST | `/contract/{id}/checkin-link` | A signed link for the client's check-in page (valid until the rental ends, a month at most); `GET`/`POST /checkin/{contract}` serve it without a session until the car is handed over. |
+| PUT | `/fine/{id}/client` | The client's side of a fine. |
+| POST | `/car/{id}/damage`, `/car/{id}/damage/{damageId}/repair` | Damage already on a car, and marking it repaired. Open damage carries over to the next rental. |
+| POST/DELETE | `/client/{id}/document`, `/car/{id}/document`, `/document/{id}` | Photos of a client's or a car's papers. |
+| GET/POST | `/import`, `/import/template/{kind}` | Owner only. Cars, clients and rentals from spreadsheets: a dry run reports every fix, then one save. |
 
 Query parameters for the list endpoints:
 

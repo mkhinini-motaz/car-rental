@@ -1,11 +1,11 @@
-# mobile — Car Rental Agency App
+# mobile: Car Rental agency app
 
 Mobile app (iOS and Android) for the staff of a car rental agency. It replaces the
 paper notebook: manage the fleet and its documents, check which cars are free for a
 period and at what price, book them, hand them over and take them back with photos and
 the odometer, record payments, extras, the deposit and traffic fines, keep each car's
 maintenance and costs, and see how the month went. It talks to the API in
-[`../carapi`](../carapi).
+[`../api`](../api).
 
 - React Native 0.87 (New Architecture), React 19, TypeScript
 - React Navigation 7 (bottom tabs + native stack)
@@ -31,7 +31,7 @@ yarn ios          # in a second terminal
 yarn android
 ```
 
-Debug builds expect the API from `php artisan serve` in `../carapi`:
+Debug builds expect the API from `php artisan serve` in `../api`:
 `http://127.0.0.1:8000/api/` on iOS, `http://10.0.2.2:8000/api/` on the Android
 emulator (the emulator's alias for your machine). On a physical Android device, run
 `adb reverse tcp:8000 tcp:8000` and use `127.0.0.1` in `src/constants/index.ts`.
@@ -70,6 +70,7 @@ log out.
 | Reports | Owner only, in four tabs. Month: revenue, net and utilization with the change since last month; in and out (revenue, other income, car costs, instalments, agency costs, salaries and charges, net, payments by method); the year chart; counts (average price per day, rentals started and cancelled, average length, late returns, overdue now, booked for the next 30 days); agency costs by category and branch and per car; payroll by employee; the month's expenses and a spreadsheet export. Fleet: days rented, idle and at the garage and cost per km per car; each car's payback; renewal (cars by the date they must be sold, with the capital coming back within a year); sold cars and what they finally returned. Clients: by revenue with badge and balance, or only those owing. Owed: who owes rent (days late) and unpaid fines. |
 | More (tab) | The agency, then new reservation, cars out, fines; for the owner cash book, reports, payroll, recurring bills and sold cars; settings and logging out. |
 | Settings | Grouped like the phone's settings. Everyone: name and phone, password (with the current one), language (remembered across restarts), logging out, app version. Owners also get the agency (details, logo, tax ID, usual pickup and return times, deposit, years a car stays in the fleet, employer charges, contract terms), pricing (seasons, long-rental discounts, extras, second driver and delivery places (free by default), lateness at return, and kilometres only if switched on), branches and their rent, recurring bills, staff (add, edit, disable, owner or manager), payroll (employees with or without a login, salary, advances and bonuses in cash or by bank, what is still due) and reminders (how early papers and oil changes are flagged). |
+| Also | Sign up (a new agency, with a code sent by SMS) and a new password from a code; import of cars, clients and rentals from spreadsheets (owner); a rental from the paper notebook in one step; damage already on a car, and marking it repaired; photos of a car's or a client's papers; the client check-in link and the contract, invoice and receipt PDFs from the contract page. |
 
 ## Project layout
 
@@ -89,6 +90,6 @@ ios/, android/           Native projects (bundle id com.example.carrental / com.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs `yarn lint`, `yarn test` and a release Metro bundle
-for iOS and Android when run by hand (Actions > CI > Run workflow); pushes and pull requests don't start it.
-`npx tsc --noEmit` still reports older type errors and is not part of CI yet.
+`.github/workflows/mobile-ci.yml` at the repository root runs `yarn lint`, `yarn test`,
+`npx tsc --noEmit` and a release Metro bundle for iOS and Android on every push or pull request
+that touches `mobile/`.
