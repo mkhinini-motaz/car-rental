@@ -92,90 +92,23 @@ I built it with Claude Code from September 2026. I wrote a first version by hand
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  subgraph Apps
-    M["Phone app<br/>React Native"]
-    W["Web app<br/>Next.js + MUI"]
-    C["Client check-in page<br/>(signed link)"]
-  end
-  API["Laravel 13 API<br/>JWT, one agency per user"]
-  DB[("MySQL<br/>SQLite in tests")]
-  F[("Private files<br/>photos, papers")]
-  S["Scheduler<br/>08:00 Tunis"]
-  FCM["Firebase push"]
-  SMS["SMS gateway"]
-  M -- "HTTPS, JSON" --> API
-  W -- "HTTPS, JSON" --> API
-  C --> API
-  S --> API
-  API --> DB
-  API --> F
-  API --> FCM
-  API --> SMS
-  subgraph Deploy["infra/"]
-    CD["Caddy (TLS, routing)"]
-    DC["Docker Compose, one server"]
-    TF["OpenTofu: AWS instance, RDS, registry,<br/>backups, alarms"]
-    GA["GitHub Actions: test, build images, deploy"]
-  end
-  Deploy -. runs .-> API
-  Deploy -. runs .-> W
-```
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.svg"><img src="docs/diagrams/architecture.svg" alt="Architecture diagram: the phone app, web app and client check-in page call the Laravel API, which uses MySQL, private files, Firebase push and an SMS gateway; infra tooling deploys the API and web app."></picture>
 
 The phone app's release builds talk to the API's domain. There is no Redis and no queue worker: the API queues nothing, and its cache uses the database.
 
 ### A rental's life
 
-```mermaid
-stateDiagram-v2
-  direction LR
-  [*] --> Reserved: booked, price from the agency's rules
-  Reserved --> Cancelled: owner cancels
-  Reserved --> Out: pickup with odometer, deposit, photos, damage
-  Out --> Returned: return with odometer, photos, new damage, km and late charges
-  Returned --> Closed: everything paid, deposit returned or part kept
-  Closed --> [*]
-  Cancelled --> [*]
-```
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/rental-states-dark.svg"><img src="docs/diagrams/rental-states.svg" alt="State diagram of a rental: reserved, then out, returned and closed, with cancelled as the other end."></picture>
 
 A rental from the paper notebook is entered already returned, or closed if it was paid in full.
 
 ### Handover without network
 
-```mermaid
-sequenceDiagram
-  participant P as Staff phone
-  participant A as API
-  P-xA: pickup fails: no network
-  Note over P: keeps the handover, its photos and the real time.<br/>Today and the contract show it as waiting.
-  P->>A: network back: sends it, with the real time (up to a week back)
-  A-->>P: the rental is out at the time it really left
-```
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/offline-handover-dark.svg"><img src="docs/diagrams/offline-handover.svg" alt="Sequence diagram: a pickup fails without network, the phone keeps it, then sends it with the real time and the API marks the rental out."></picture>
 
 ### Data model
 
-```mermaid
-erDiagram
-  AGENCY ||--o{ BRANCH : has
-  AGENCY ||--o{ USER : "owners and managers"
-  AGENCY ||--o{ CAR : owns
-  AGENCY ||--o{ CLIENT : knows
-  AGENCY ||--o{ EMPLOYEE : pays
-  AGENCY ||--o{ CASH_MOVEMENT : "till"
-  BRANCH |o--o{ CAR : parks
-  CAR ||--o{ CONTRACT : "rented in"
-  CLIENT ||--o{ CONTRACT : "rents (or second driver)"
-  CONTRACT ||--o{ PAYMENT : "paid by"
-  CONTRACT ||--o{ CONTRACT_PHOTO : "inspected in"
-  CONTRACT ||--o{ CONTRACT_DAMAGE : records
-  CAR ||--o{ CONTRACT_DAMAGE : carries
-  CAR ||--o{ CAR_BLOCK : "blocked by"
-  CAR ||--o{ EXPENSE : costs
-  CAR ||--o{ FINE : gets
-  CONTRACT |o--o{ FINE : "matched to"
-  EMPLOYEE ||--o{ SALARY_PAYMENT : receives
-```
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/data-model-dark.svg"><img src="docs/diagrams/data-model.svg" alt="Entity diagram of the data model: an agency owns branches, users, cars, clients and employees, and contracts link cars, clients, payments, photos and damage."></picture>
 
 Twenty models in all; the others are activities, documents, incomes, recurring bills and device tokens.
 

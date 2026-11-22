@@ -1,0 +1,7 @@
+sequenceDiagram
+  participant P as Staff phone
+  participant A as API
+  P-xA: pickup fails: no network
+  Note over P: keeps the handover, its photos and the real time.<br/>Today and the contract show it as waiting.
+  P->>A: network back: sends it, with the real time (up to a week back)
+  A-->>P: the rental is out at the time it really left

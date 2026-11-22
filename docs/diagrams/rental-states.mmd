@@ -1,0 +1,9 @@
+stateDiagram-v2
+  direction LR
+  [*] --> Reserved: booked, price from the agency's rules
+  Reserved --> Cancelled: owner cancels
+  Reserved --> Out: pickup with odometer, deposit, photos, damage
+  Out --> Returned: return with odometer, photos, new damage, km and late charges
+  Returned --> Closed: everything paid, deposit returned or part kept
+  Closed --> [*]
+  Cancelled --> [*]

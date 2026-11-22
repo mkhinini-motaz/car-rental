@@ -1,0 +1,28 @@
+flowchart LR
+  subgraph Apps
+    M["Phone app<br/>React Native"]
+    W["Web app<br/>Next.js + MUI"]
+    C["Client check-in page<br/>(signed link)"]
+  end
+  API["Laravel 13 API<br/>JWT, one agency per user"]
+  DB[("MySQL<br/>SQLite in tests")]
+  F[("Private files<br/>photos, papers")]
+  S["Scheduler<br/>08:00 Tunis"]
+  FCM["Firebase push"]
+  SMS["SMS gateway"]
+  M -- "HTTPS, JSON" --> API
+  W -- "HTTPS, JSON" --> API
+  C --> API
+  S --> API
+  API --> DB
+  API --> F
+  API --> FCM
+  API --> SMS
+  subgraph Deploy["infra/"]
+    CD["Caddy (TLS, routing)"]
+    DC["Docker Compose, one server"]
+    TF["OpenTofu: AWS instance, RDS, registry,<br/>backups, alarms"]
+    GA["GitHub Actions: test, build images, deploy"]
+  end
+  Deploy -. runs .-> API
+  Deploy -. runs .-> W

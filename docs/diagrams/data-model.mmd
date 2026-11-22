@@ -1,0 +1,21 @@
+erDiagram
+  AGENCY ||--o{ BRANCH : has
+  AGENCY ||--o{ USER : "owners and managers"
+  AGENCY ||--o{ CAR : owns
+  AGENCY ||--o{ CLIENT : knows
+  AGENCY ||--o{ EMPLOYEE : pays
+  AGENCY ||--o{ CASH_MOVEMENT : "till"
+  BRANCH |o--o{ CAR : parks
+  CAR ||--o{ CONTRACT : "rented in"
+  CLIENT ||--o{ CONTRACT : "rents (or second driver)"
+  CONTRACT ||--o{ PAYMENT : "paid by"
+  CONTRACT ||--o{ CONTRACT_PHOTO : "inspected in"
+  CONTRACT ||--o{ CONTRACT_DAMAGE : records
+  CAR ||--o{ CONTRACT_DAMAGE : carries
+  CAR ||--o{ CAR_BLOCK : "blocked by"
+  CAR ||--o{ EXPENSE : costs
+  CAR ||--o{ FINE : gets
+  CONTRACT |o--o{ FINE : "matched to"
+  EMPLOYEE ||--o{ SALARY_PAYMENT : receives
+  CONTRACT_DAMAGE["CONTRACT DAMAGE"]
+  CONTRACT_PHOTO["CONTRACT PHOTO"]
